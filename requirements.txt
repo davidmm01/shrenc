@@ -1,0 +1,4 @@
+pycairo
+PyGObject
+pytest
+python-gnupg
