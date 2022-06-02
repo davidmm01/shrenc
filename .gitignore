@@ -1,5 +1,12 @@
+# python/env
 .venv/
 .pytest_cache
 */__pycache__/
+
+# gtk examples
+*_eg.py
+
+# gpg stuff
 pubring.kbx
 random_seed
+private-keys*
