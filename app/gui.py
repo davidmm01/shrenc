@@ -16,14 +16,17 @@ from operations import compress_file, encrypt_file, decrypt_file, uncompress_fil
 #  - provide option to supply enc/dec passphrase
 
 
+SELECTED_FILE_ENC_RESET_MSG = "File to encrypt: None chosen"
+SELECTED_FILE_DEC_RESET_MSG = "File to decrypt: None chosen"
+
 class MainWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title ="Shrenc")
         self.set_border_width(10)
         Gtk.Window.set_default_size(self, 640, 480)
 
-        self._selected_enc_filename = "File to encrypt: None chosen"
-        self._selected_dec_filename = "File to decrypt: None chosen"
+        self._selected_enc_filename = SELECTED_FILE_ENC_RESET_MSG
+        self._selected_dec_filename = SELECTED_FILE_DEC_RESET_MSG
 
         # Create the outer vertical box with a space of 100 pixel.
         outer_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 100)
@@ -38,14 +41,17 @@ class MainWindow(Gtk.Window):
         choose_file_enc_button = Gtk.Button(label="Choose File")
         choose_file_enc_button.connect("clicked", self.on_choose_file_enc_clicked)
         self.chosen_file_enc_label = Gtk.Label(label=self._selected_enc_filename)
-        encrypt_button = Gtk.Button(label="Encrypt")
-        encrypt_button.connect("clicked", self.on_encrypt_clicked)
+        self.enc_outcome_label = Gtk.Label(label="")
+        self.encrypt_button = Gtk.Button(label="Encrypt")
+        self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
+        self.encrypt_button.set_sensitive(False)
 
         # create the box that will home all the encryption elements, and put the buttons in
         encrypt_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 100)
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
-        encrypt_box.pack_start(encrypt_button, True, True, 0)  # TODO: figure out these other params
+        encrypt_box.pack_start(self.encrypt_button, True, True, 0)  # TODO: figure out these other params
+        encrypt_box.pack_start(self.enc_outcome_label, True, True, 0)
 
         # add encrypt box to encrypt stack
         stack.add_titled(encrypt_box, "box", "Encrypt")
@@ -54,14 +60,17 @@ class MainWindow(Gtk.Window):
         choose_file_dec_button = Gtk.Button(label="Choose File")
         choose_file_dec_button.connect("clicked", self.on_choose_file_dec_clicked)
         self.chosen_file_dec_label = Gtk.Label(label=self._selected_dec_filename)
-        decrypt_button = Gtk.Button(label="Decrypt")
-        decrypt_button.connect("clicked", self.on_decrypt_clicked)
+        self.dec_outcome_label = Gtk.Label(label="")
+        self.decrypt_button = Gtk.Button(label="Decrypt")
+        self.decrypt_button.connect("clicked", self.on_decrypt_clicked)
+        self.decrypt_button.set_sensitive(False)
 
         # create the box that will home all the decryption elements, and put the buttons in
         decrypt_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 100)
         decrypt_box.pack_start(choose_file_dec_button, True, True, 0)
         decrypt_box.pack_start(self.chosen_file_dec_label, True, True, 0)
-        decrypt_box.pack_start(decrypt_button, True, True, 0)  # TODO: figure out these other params
+        decrypt_box.pack_start(self.decrypt_button, True, True, 0)  # TODO: figure out these other params
+        decrypt_box.pack_start(self.dec_outcome_label, True, True, 0)
 
         # add decrypt box to encrypt stack
         stack.add_titled(decrypt_box, "box", "Decrypt")
@@ -95,6 +104,7 @@ class MainWindow(Gtk.Window):
             print("File selected: " + dialog.get_filename())
             self._selected_enc_filename = dialog.get_filename()
             self.chosen_file_enc_label.set_text("File to encrypt: " + self._selected_enc_filename)
+            self.encrypt_button.set_sensitive(True)
         elif response == Gtk.ResponseType.CANCEL:
             print("Cancel clicked")
 
@@ -116,7 +126,8 @@ class MainWindow(Gtk.Window):
             print("Open clicked")
             print("File selected: " + dialog.get_filename())
             self._selected_dec_filename = dialog.get_filename()
-            self.chosen_file_dec_label.set_text("File to decrypt: " + self._selected_enc_filename)
+            self.chosen_file_dec_label.set_text("File to decrypt: " + self._selected_dec_filename)
+            self.decrypt_button.set_sensitive(True)
         elif response == Gtk.ResponseType.CANCEL:
             print("Cancel clicked")
 
@@ -130,6 +141,11 @@ class MainWindow(Gtk.Window):
         print("finished compressing")
         encrypt_file(compressed_name, encrypted_name)
         print("finished encrypting")
+        # TODO: all of this can probs go in some reset function thats also called on init
+        self.enc_outcome_label.set_text("Success!: Created " + encrypted_name)
+        self.chosen_file_enc_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
+        self._selected_enc_filename = None
+        self.encrypt_button.set_sensitive(False)
 
     def on_decrypt_clicked(self, widget):
         print("decrypt was clicked!!!!!!!")
@@ -139,7 +155,11 @@ class MainWindow(Gtk.Window):
         print("finished decryption")
         uncompress_file(decryted_name, uncompressed_name)
         print("finished uncompressing")
-
+        # TODO: all of this can probs go in some reset function thats also called on init
+        self.dec_outcome_label.set_text("Success!: Created " + uncompressed_name)
+        self.chosen_file_dec_label.set_text(SELECTED_FILE_DEC_RESET_MSG)
+        self._selected_dec_filename = None
+        self.decrypt_button.set_sensitive(False)
 
 win = MainWindow()
 win.connect("destroy", Gtk.main_quit)
