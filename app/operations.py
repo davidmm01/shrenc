@@ -15,11 +15,19 @@ def uncompress_file(filename_in, filename_out):
             shutil.copyfileobj(f_in, f_out)
 
 
-def encrypt_file(filename_in, filename_out):
+def encrypt_file(filename_in, filename_out, symmetric=True, armor=True):
+    # TODO: now that we always pass armor and symmetric, can remove the defaults
     gpg = gnupg.GPG(gnupghome='.')
     gpg.encoding = 'utf-8'
     with open(filename_in, "rb") as f:
-        gpg.encrypt_file(f, None, symmetric=True, passphrase='poops', output=filename_out)
+        gpg.encrypt_file(
+            f,
+            None,
+            symmetric=symmetric,
+            passphrase='poops',
+            output=filename_out,
+            armor=armor,
+        )
 
 
 def decrypt_file(filename_in, filename_out):

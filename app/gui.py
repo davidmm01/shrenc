@@ -20,6 +20,8 @@ SELECTED_FILE_ENC_RESET_MSG = "File to encrypt: None chosen"
 SELECTED_FILE_DEC_RESET_MSG = "File to decrypt: None chosen"
 
 class MainWindow(Gtk.Window):
+    # TODO: oh god this init is very gross, address before its too late...
+    # maybe start with an encryption stack class?
     def __init__(self):
         Gtk.Window.__init__(self, title ="Shrenc")
         self.set_border_width(10)
@@ -44,17 +46,46 @@ class MainWindow(Gtk.Window):
         self.enc_outcome_label = Gtk.Label(label="")
         self.encrypt_button = Gtk.Button(label="Encrypt")
         self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
+        self.armor_toggle = Gtk.CheckButton(label="Use armor?")
+        self._selected_cypher = "IDEA"
+        cypher_store = Gtk.ListStore(str)
+        # TODO: could the available cyphers be worked out from the version
+        # info of GPG? Would protect from using one that is invalid with the version of GPG.
+        cyphers = [
+            "IDEA",
+            "3DES",
+            "CAST5",
+            "BLOWFISH",
+            "AES",
+            "AES192",
+            "AES256",
+            "TWOFISH",
+            "CAMELLIA128",
+            "CAMELLIA192",
+            "CAMELLIA256",
+        ]
+        for cypher in cyphers:
+            cypher_store.append([cypher])
+        self.cypher_combo = Gtk.ComboBox.new_with_model(cypher_store)
+        self.cypher_combo.connect("changed", self.on_cypher_combo_changed)
+        # need this so the labels in the list store actually get applied to the combobox
+        renderer_text = Gtk.CellRendererText()
+        self.cypher_combo.pack_start(renderer_text, True)
+        self.cypher_combo.add_attribute(renderer_text, "text", 0)
+        self.cypher_combo.set_active(6)  # set AES256 as the default
         self.encrypt_button.set_sensitive(False)
 
         # create the box that will home all the encryption elements, and put the buttons in
         encrypt_box = Gtk.Box(orientation = Gtk.Orientation.VERTICAL, spacing = 100)
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
+        encrypt_box.pack_start(self.armor_toggle, True, True, 0)
+        encrypt_box.pack_start(self.cypher_combo, True, True, 0)
         encrypt_box.pack_start(self.encrypt_button, True, True, 0)  # TODO: figure out these other params
         encrypt_box.pack_start(self.enc_outcome_label, True, True, 0)
 
         # add encrypt box to encrypt stack
-        stack.add_titled(encrypt_box, "box", "Encrypt")
+        stack.add_titled(encrypt_box, "encrypt_box", "Encrypt")
 
         # Decrypt
         choose_file_dec_button = Gtk.Button(label="Choose File")
@@ -73,7 +104,7 @@ class MainWindow(Gtk.Window):
         decrypt_box.pack_start(self.dec_outcome_label, True, True, 0)
 
         # add decrypt box to encrypt stack
-        stack.add_titled(decrypt_box, "box", "Decrypt")
+        stack.add_titled(decrypt_box, "decrypt_box", "Decrypt")
 
         # Implementation of stack switcher.
         stack_switcher = Gtk.StackSwitcher()
@@ -85,6 +116,13 @@ class MainWindow(Gtk.Window):
 
         # Add the outer box to the window
         self.add(outer_box)
+
+    def on_cypher_combo_changed(self, combo):
+        tree_iter = combo.get_active_iter()
+        if tree_iter is not None:
+            model = combo.get_model()
+            self._selected_cypher = model[tree_iter][0]
+            print("Selected: cypher=%s" % self._selected_cypher)
 
     # TODO: refactor following two methods DRY
     def on_choose_file_enc_clicked(self, widget):
@@ -139,8 +177,17 @@ class MainWindow(Gtk.Window):
         encrypted_name = compressed_name + ".enc"
         compress_file(self._selected_enc_filename, compressed_name)
         print("finished compressing")
-        encrypt_file(compressed_name, encrypted_name)
-        print("finished encrypting")
+        encrypt_file(
+            compressed_name,
+            encrypted_name,
+            symmetric=self._selected_cypher,
+            armor=self.armor_toggle.get_active()
+        )
+        print(
+            "finished encrypting with "
+            f"cypher={self._selected_cypher} "
+            f"armor={self.armor_toggle.get_active()}"
+        )
         # TODO: all of this can probs go in some reset function thats also called on init
         self.enc_outcome_label.set_text("Success!: Created " + encrypted_name)
         self.chosen_file_enc_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
