@@ -5,15 +5,17 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-from operations import compress_file, encrypt_file, decrypt_file, uncompress_file
+from operations import compress_file_gzip, encrypt_file, decrypt_file, uncompress_file_gzip
 
 
-# to work towards list:
+# TODO to work towards list:
 #  - provide name for decrypt output
 #  - provide option to encrypt file name also
-#  - provide multifile tar.gz to enc/dec
+#  - provide multifile tar.blah to enc/dec
 #  - add logging rather than printing
 #  - provide option to supply enc/dec passphrase
+#  - add way to choose the compression format
+#  - add tox to run app, tests and style checks and stuff like that
 
 
 SELECTED_FILE_ENC_RESET_MSG = "File to encrypt: None chosen"
@@ -47,6 +49,7 @@ class MainWindow(Gtk.Window):
         self.encrypt_button = Gtk.Button(label="Encrypt")
         self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
         self.armor_toggle = Gtk.CheckButton(label="Use armor?")
+        self._select_cypher_label = Gtk.Label(label="Select cypher algorithm")
         self._selected_cypher = "IDEA"
         cypher_store = Gtk.ListStore(str)
         # TODO: could the available cyphers be worked out from the version
@@ -80,6 +83,7 @@ class MainWindow(Gtk.Window):
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
         encrypt_box.pack_start(self.armor_toggle, True, True, 0)
+        encrypt_box.pack_start(self._select_cypher_label, True, True, 0)
         encrypt_box.pack_start(self.cypher_combo, True, True, 0)
         encrypt_box.pack_start(self.encrypt_button, True, True, 0)  # TODO: figure out these other params
         encrypt_box.pack_start(self.enc_outcome_label, True, True, 0)
@@ -175,7 +179,7 @@ class MainWindow(Gtk.Window):
         print("encrypt was clicked!!!!!!!")
         compressed_name = self._selected_enc_filename + ".gz"
         encrypted_name = compressed_name + ".enc"
-        compress_file(self._selected_enc_filename, compressed_name)
+        compress_file_gzip(self._selected_enc_filename, compressed_name)
         print("finished compressing")
         encrypt_file(
             compressed_name,
@@ -200,13 +204,14 @@ class MainWindow(Gtk.Window):
         uncompressed_name = decryted_name + ".unc"
         decrypt_file(self._selected_dec_filename, decryted_name)
         print("finished decryption")
-        uncompress_file(decryted_name, uncompressed_name)
+        uncompress_file_gzip(decryted_name, uncompressed_name)
         print("finished uncompressing")
         # TODO: all of this can probs go in some reset function thats also called on init
         self.dec_outcome_label.set_text("Success!: Created " + uncompressed_name)
         self.chosen_file_dec_label.set_text(SELECTED_FILE_DEC_RESET_MSG)
         self._selected_dec_filename = None
         self.decrypt_button.set_sensitive(False)
+
 
 win = MainWindow()
 win.connect("destroy", Gtk.main_quit)

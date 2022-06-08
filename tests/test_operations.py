@@ -1,12 +1,30 @@
 import filecmp
 import os
+import pytest
 
-from app.operations import compress_file, decrypt_file, encrypt_file, uncompress_file
+from app.operations import (
+    compress_file_bz2,
+    compress_file_gzip,
+    compress_file_lzma,
+    decrypt_file,
+    encrypt_file,
+    uncompress_file_bz2,
+    uncompress_file_gzip,
+    uncompress_file_lzma,
+)
 
 
-def test_file_compression_and_extraction():
+@pytest.mark.parametrize(
+    'compress_fn, uncompress_fn',
+    [
+        (compress_file_bz2, uncompress_file_bz2),
+        (compress_file_gzip, uncompress_file_gzip),
+        (compress_file_lzma, uncompress_file_lzma),
+    ]
+)
+def test_file_compression_and_extraction(compress_fn, uncompress_fn):
     TEST_FILE = "some_file.txt"
-    COMPRESSED_TEST_FILE = "some_file.tgz"
+    COMPRESSED_TEST_FILE = "some_file.txt.compressed"
     UNCOMPRESSED_TEST_FILE = "some_file_uncompressed.txt"
 
     # start from clean
@@ -19,11 +37,11 @@ def test_file_compression_and_extraction():
         f.write("blahhhhhhh")
 
     # compress the file and check the file exists
-    compress_file(TEST_FILE, COMPRESSED_TEST_FILE)
+    compress_fn(TEST_FILE, COMPRESSED_TEST_FILE)
     assert os.path.exists(COMPRESSED_TEST_FILE)
 
     # uncompress the file and check the file exists
-    uncompress_file(COMPRESSED_TEST_FILE, UNCOMPRESSED_TEST_FILE)
+    uncompress_fn(COMPRESSED_TEST_FILE, UNCOMPRESSED_TEST_FILE)
     assert os.path.exists(UNCOMPRESSED_TEST_FILE)
 
     # check file looks the same before and after compression
