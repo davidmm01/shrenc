@@ -1,47 +1,62 @@
-import bz2
 import gnupg
-import gzip
-import lzma
-import shutil
-
-# TODO: we can probs add a bunch of options andd stuff to these compressions, and
-# if not, then refactor and stop having so much duplication?
-
-# TODO: rename this fella so its clear its about gzip
-def compress_file_gzip(filename_in, filename_out):
-    with open(filename_in, 'rb') as f_in:
-        with gzip.open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+import tarfile
 
 
-def uncompress_file_gzip(filename_in, filename_out):
-    with gzip.open(filename_in, 'rb') as f_in:
-        with open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+EXT_TAR = ".tar"
+EXT_BZ2 = ".bz2"
+EXT_TAR_BZ2 = EXT_TAR + EXT_BZ2
+EXT_GZIP = ".gz"
+EXT_TAR_GZIP = EXT_TAR + EXT_GZIP
+EXT_LZMA = ".xz"
+EXT_TAR_LZMA = EXT_TAR + EXT_LZMA
+
+PARAM_TO_TAR_COMPRESS_SETTINGS = {
+    "tar-only": {"mode": "w", "ext": EXT_TAR},
+    "gzip":{"mode": "w:gz", "ext": EXT_TAR_GZIP},
+    "bz2": {"mode": "w:bz2", "ext": EXT_TAR_BZ2},
+    "lzma": {"mode": "w:xz", "ext": EXT_TAR_LZMA},
+}
+
+EXT_TO_MODE = {
+    EXT_TAR: "r:",
+    EXT_TAR_GZIP: "r:gz",
+    EXT_TAR_BZ2: "r:bz2",
+    EXT_TAR_LZMA: "r:xz",
+}
 
 
-def compress_file_lzma(filename_in, filename_out):
-    with open(filename_in, 'rb') as f_in:
-        with lzma.open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+def tar_and_compress(path, archive_name, compression="no-compression"):
+    settings = PARAM_TO_TAR_COMPRESS_SETTINGS.get(compression)
+    if not settings:
+        # TODO: raise suitable error here, and a unit test for this
+        pass
+
+    output_name = archive_name + settings["ext"]
+    mode = settings["mode"]
+
+    with tarfile.open(output_name, mode) as tar:
+        tar.add(path)
+
+    return output_name
 
 
-def uncompress_file_lzma(filename_in, filename_out):
-    with lzma.open(filename_in, 'rb') as f_in:
-        with open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+def undo_tar_and_compress(archive, new_dir=None):
+    mode = None
+    for key in EXT_TO_MODE:
+        if archive.endswith(key):
+            mode = EXT_TO_MODE[key]
+            continue
 
+    if not mode:
+        # TODO: raise suitable error here, and a unit test for this
+        pass
 
-def compress_file_bz2(filename_in, filename_out):
-    with open(filename_in, 'rb') as f_in:
-        with bz2.open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+    dest = "."
+    if new_dir:
+        dest = f"{dest}/{new_dir}"
 
-
-def uncompress_file_bz2(filename_in, filename_out):
-    with bz2.open(filename_in, 'rb') as f_in:
-        with open(filename_out, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
+    with tarfile.open(archive, mode) as tar:
+        tar.extractall(dest)
 
 
 def encrypt_file(filename_in, filename_out, symmetric=True, armor=True):

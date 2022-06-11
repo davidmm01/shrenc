@@ -3,9 +3,12 @@ import gi
 # of GTK + installed, we want to make
 # sure that we are importing GTK + 3.
 gi.require_version("Gtk", "3.0")
+import os
+import time
+
 from gi.repository import Gtk
 
-from operations import compress_file_gzip, encrypt_file, decrypt_file, uncompress_file_gzip
+from operations import encrypt_file, decrypt_file, tar_and_compress, undo_tar_and_compress
 
 
 # TODO to work towards list:
@@ -54,6 +57,7 @@ class MainWindow(Gtk.Window):
         cypher_store = Gtk.ListStore(str)
         # TODO: could the available cyphers be worked out from the version
         # info of GPG? Would protect from using one that is invalid with the version of GPG.
+        # Atleast make the cyphers a constant later if no logic
         cyphers = [
             "IDEA",
             "3DES",
@@ -177,10 +181,13 @@ class MainWindow(Gtk.Window):
 
     def on_encrypt_clicked(self, widget):
         print("encrypt was clicked!!!!!!!")
-        compressed_name = self._selected_enc_filename + ".gz"
+        # TODO: add mechanism to provide a name for the compressed archive
+        name = time.time()
+        name = str(name).replace(".", "_")
+        # TODO: add encryption options
+        compressed_name = tar_and_compress(self._selected_enc_filename, name, "gzip")
+        print(f"finished compressing file {compressed_name}")
         encrypted_name = compressed_name + ".enc"
-        compress_file_gzip(self._selected_enc_filename, compressed_name)
-        print("finished compressing")
         encrypt_file(
             compressed_name,
             encrypted_name,
@@ -192,6 +199,9 @@ class MainWindow(Gtk.Window):
             f"cypher={self._selected_cypher} "
             f"armor={self.armor_toggle.get_active()}"
         )
+        print(f"new file exists {encrypted_name}")
+        print(f"removing intermediate file {compressed_name}")
+        os.remove(compressed_name)
         # TODO: all of this can probs go in some reset function thats also called on init
         self.enc_outcome_label.set_text("Success!: Created " + encrypted_name)
         self.chosen_file_enc_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
@@ -200,14 +210,15 @@ class MainWindow(Gtk.Window):
 
     def on_decrypt_clicked(self, widget):
         print("decrypt was clicked!!!!!!!")
-        decryted_name = self._selected_dec_filename + ".dec"
-        uncompressed_name = decryted_name + ".unc"
+        decryted_name = self._selected_dec_filename.rstrip(".enc")
         decrypt_file(self._selected_dec_filename, decryted_name)
-        print("finished decryption")
-        uncompress_file_gzip(decryted_name, uncompressed_name)
+        print(f"finished decryption, new file exists {decryted_name}")
+        undo_tar_and_compress(decryted_name, "OUTPUT")
         print("finished uncompressing")
+        os.remove(decryted_name)
+        # TODO: the file that ends up in output has so many subdirs, find out why
         # TODO: all of this can probs go in some reset function thats also called on init
-        self.dec_outcome_label.set_text("Success!: Created " + uncompressed_name)
+        self.dec_outcome_label.set_text("Success!: Created new file in OUTPUT dir")
         self.chosen_file_dec_label.set_text(SELECTED_FILE_DEC_RESET_MSG)
         self._selected_dec_filename = None
         self.decrypt_button.set_sensitive(False)
