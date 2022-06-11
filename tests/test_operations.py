@@ -1,7 +1,8 @@
 import filecmp
 import os
-import pytest
 import shutil
+
+import pytest
 
 from app.operations import (
     decrypt_file,
@@ -11,12 +12,7 @@ from app.operations import (
 )
 
 
-@pytest.mark.parametrize('compression', [
-    "tar-only",
-    "gzip",
-    "bz2",
-    "lzma"
-])
+@pytest.mark.parametrize("compression", ["tar-only", "gzip", "bz2", "lzma"])
 def test_file_compression_and_extraction_on_single_file(compression):
     TEST_FILE = "some_file.txt"
     COMPRESSED_NAME_WO_EXT = "new_archive"

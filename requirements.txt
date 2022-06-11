@@ -1,3 +1,7 @@
+# TODO: maybe when the test runner exists, make a requirements-test.txt
+
+black
+isort
 pycairo
 PyGObject
 pytest

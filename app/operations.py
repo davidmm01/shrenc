@@ -1,6 +1,6 @@
-import gnupg
 import tarfile
 
+import gnupg
 
 EXT_TAR = ".tar"
 EXT_BZ2 = ".bz2"
@@ -12,7 +12,7 @@ EXT_TAR_LZMA = EXT_TAR + EXT_LZMA
 
 PARAM_TO_TAR_COMPRESS_SETTINGS = {
     "tar-only": {"mode": "w", "ext": EXT_TAR},
-    "gzip":{"mode": "w:gz", "ext": EXT_TAR_GZIP},
+    "gzip": {"mode": "w:gz", "ext": EXT_TAR_GZIP},
     "bz2": {"mode": "w:bz2", "ext": EXT_TAR_BZ2},
     "lzma": {"mode": "w:xz", "ext": EXT_TAR_LZMA},
 }
@@ -61,21 +61,21 @@ def undo_tar_and_compress(archive, new_dir=None):
 
 def encrypt_file(filename_in, filename_out, symmetric=True, armor=True):
     # TODO: now that we always pass armor and symmetric, can remove the defaults
-    gpg = gnupg.GPG(gnupghome='.')
-    gpg.encoding = 'utf-8'
+    gpg = gnupg.GPG(gnupghome=".")
+    gpg.encoding = "utf-8"
     with open(filename_in, "rb") as f:
         gpg.encrypt_file(
             f,
             None,
             symmetric=symmetric,
-            passphrase='poops',
+            passphrase="poops",
             output=filename_out,
             armor=armor,
         )
 
 
 def decrypt_file(filename_in, filename_out):
-    gpg = gnupg.GPG(gnupghome='.')
-    gpg.encoding = 'utf-8'
+    gpg = gnupg.GPG(gnupghome=".")
+    gpg.encoding = "utf-8"
     with open(filename_in, "rb") as f:
-        gpg.decrypt_file(f, passphrase='poops', output=filename_out)
+        gpg.decrypt_file(f, passphrase="poops", output=filename_out)
