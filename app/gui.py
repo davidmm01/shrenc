@@ -57,8 +57,31 @@ class MainWindow(Gtk.Window):
         self.encrypt_button = Gtk.Button(label="Encrypt")
         self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
         self.armor_toggle = Gtk.CheckButton(label="Use armor?")
+
+        # need this so the labels in the various list stores actually get applied to the comboboxes
+        renderer_text = Gtk.CellRendererText()
+
+        self._selected_compression_label = Gtk.Label(label="Select compression")
+        self._selected_compression = "gzip"
+        compression_store = Gtk.ListStore(str, str)
+        compression_options = [
+            ["gzip (.tar.gz)", "gzip"],
+            ["bz2 (.tar.bz2)", "bz2"],
+            ["lzma (.tar.xz)", "lzma"],
+            ["No compression (.tar)", "tar-only"],
+        ]
+        for compression_option in compression_options:
+            compression_store.append(compression_option)
+        self.compression_combo = Gtk.ComboBox.new_with_model(compression_store)
+        self.compression_combo.connect("changed", self.on_compression_combo_changed)
+        self.compression_combo.set_entry_text_column(0)
+
+        self.compression_combo.pack_start(renderer_text, True)
+        self.compression_combo.add_attribute(renderer_text, "text", 0)
+        self.compression_combo.set_active(0)  # set zgip as the default
+
         self._select_cypher_label = Gtk.Label(label="Select cypher algorithm")
-        self._selected_cypher = "IDEA"
+        self._selected_cypher = "AES256"
         cypher_store = Gtk.ListStore(str)
         # TODO: could the available cyphers be worked out from the version
         # info of GPG? Would protect from using one that is invalid with the version of GPG.
@@ -80,8 +103,7 @@ class MainWindow(Gtk.Window):
             cypher_store.append([cypher])
         self.cypher_combo = Gtk.ComboBox.new_with_model(cypher_store)
         self.cypher_combo.connect("changed", self.on_cypher_combo_changed)
-        # need this so the labels in the list store actually get applied to the combobox
-        renderer_text = Gtk.CellRendererText()
+
         self.cypher_combo.pack_start(renderer_text, True)
         self.cypher_combo.add_attribute(renderer_text, "text", 0)
         self.cypher_combo.set_active(6)  # set AES256 as the default
@@ -91,6 +113,8 @@ class MainWindow(Gtk.Window):
         encrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=100)
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
+        encrypt_box.pack_start(self._selected_compression_label, True, True, 0)
+        encrypt_box.pack_start(self.compression_combo, True, True, 0)
         encrypt_box.pack_start(self.armor_toggle, True, True, 0)
         encrypt_box.pack_start(self._select_cypher_label, True, True, 0)
         encrypt_box.pack_start(self.cypher_combo, True, True, 0)
@@ -140,6 +164,13 @@ class MainWindow(Gtk.Window):
             model = combo.get_model()
             self._selected_cypher = model[tree_iter][0]
             print("Selected: cypher=%s" % self._selected_cypher)
+
+    def on_compression_combo_changed(self, combo):
+        tree_iter = combo.get_active_iter()
+        if tree_iter is not None:
+            model = combo.get_model()
+            self._selected_compression = model[tree_iter][1]
+            print("selected compression:", self._selected_compression)
 
     # TODO: refactor following two methods DRY
     def on_choose_file_enc_clicked(self, widget):
@@ -198,7 +229,9 @@ class MainWindow(Gtk.Window):
         name = time.time()
         name = str(name).replace(".", "_")
         # TODO: add encryption options
-        compressed_name = tar_and_compress(self._selected_enc_filename, name, "gzip")
+        compressed_name = tar_and_compress(
+            self._selected_enc_filename, name, self._selected_compression
+        )
         print(f"finished compressing file {compressed_name}")
         encrypted_name = compressed_name + ".enc"
         encrypt_file(
