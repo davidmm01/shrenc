@@ -58,6 +58,16 @@ class MainWindow(Gtk.Window):
         self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
         self.armor_toggle = Gtk.CheckButton(label="Use armor?")
 
+        # TODO: should not be able to hit encrypt without a passphrase
+        self._reveal_passphrase_enc = False
+        # self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
+        self.entry_passphrase = Gtk.Entry()
+        self.entry_passphrase.set_visibility(self._reveal_passphrase_enc)
+        self.entry_passphrase_toggle = Gtk.CheckButton(label="Reveal passphrase?")
+        self.entry_passphrase_toggle.connect(
+            "toggled", self.on_entry_passphrase_toggled
+        )
+
         # need this so the labels in the various list stores actually get applied to the comboboxes
         renderer_text = Gtk.CellRendererText()
 
@@ -114,6 +124,9 @@ class MainWindow(Gtk.Window):
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
         encrypt_box.pack_start(self._selected_compression_label, True, True, 0)
+        # encrypt_box.pack_start(self.entry_passphrase_label, True, True, 0)
+        encrypt_box.pack_start(self.entry_passphrase, True, True, 0)
+        encrypt_box.pack_start(self.entry_passphrase_toggle, True, True, 0)
         encrypt_box.pack_start(self.compression_combo, True, True, 0)
         encrypt_box.pack_start(self.armor_toggle, True, True, 0)
         encrypt_box.pack_start(self._select_cypher_label, True, True, 0)
@@ -130,6 +143,17 @@ class MainWindow(Gtk.Window):
         choose_file_dec_button = Gtk.Button(label="Choose File")
         choose_file_dec_button.connect("clicked", self.on_choose_file_dec_clicked)
         self.chosen_file_dec_label = Gtk.Label(label=self._selected_dec_filename)
+
+        # TODO: should not be able to hit encrypt without a passphrase
+        self._reveal_passphrase_dec = False
+        # self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
+        self.entry_passphrase_dec = Gtk.Entry()
+        self.entry_passphrase_dec.set_visibility(self._reveal_passphrase_enc)
+        self.entry_passphrase_toggle_dec = Gtk.CheckButton(label="Reveal passphrase?")
+        self.entry_passphrase_toggle_dec.connect(
+            "toggled", self.on_entry_passphrase_dec_toggled
+        )
+
         self.dec_outcome_label = Gtk.Label(label="")
         self.decrypt_button = Gtk.Button(label="Decrypt")
         self.decrypt_button.connect("clicked", self.on_decrypt_clicked)
@@ -139,6 +163,8 @@ class MainWindow(Gtk.Window):
         decrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=100)
         decrypt_box.pack_start(choose_file_dec_button, True, True, 0)
         decrypt_box.pack_start(self.chosen_file_dec_label, True, True, 0)
+        decrypt_box.pack_start(self.entry_passphrase_dec, True, True, 0)
+        decrypt_box.pack_start(self.entry_passphrase_toggle_dec, True, True, 0)
         decrypt_box.pack_start(
             self.decrypt_button, True, True, 0
         )  # TODO: figure out these other params
@@ -237,11 +263,13 @@ class MainWindow(Gtk.Window):
         encrypt_file(
             compressed_name,
             encrypted_name,
+            self.entry_passphrase.get_text(),
             symmetric=self._selected_cypher,
             armor=self.armor_toggle.get_active(),
         )
         print(
             "finished encrypting with "
+            f"passphrase={self.entry_passphrase.get_text()} "
             f"cypher={self._selected_cypher} "
             f"armor={self.armor_toggle.get_active()}"
         )
@@ -257,7 +285,11 @@ class MainWindow(Gtk.Window):
     def on_decrypt_clicked(self, widget):
         print("decrypt was clicked!!!!!!!")
         decryted_name = self._selected_dec_filename.rstrip(".enc")
-        decrypt_file(self._selected_dec_filename, decryted_name)
+        decrypt_file(
+            self._selected_dec_filename,
+            decryted_name,
+            self.entry_passphrase_dec.get_text(),
+        )
         print(f"finished decryption, new file exists {decryted_name}")
         undo_tar_and_compress(decryted_name, "OUTPUT")
         print("finished uncompressing")
@@ -268,6 +300,15 @@ class MainWindow(Gtk.Window):
         self.chosen_file_dec_label.set_text(SELECTED_FILE_DEC_RESET_MSG)
         self._selected_dec_filename = None
         self.decrypt_button.set_sensitive(False)
+
+    def on_entry_passphrase_toggled(self, checkbutton):
+        # is it necessary to have the self._reveal_passphrase_enc attr?
+        self._reveal_passphrase_enc = self.entry_passphrase_toggle.get_active()
+        self.entry_passphrase.set_visibility(self._reveal_passphrase_enc)
+
+    def on_entry_passphrase_dec_toggled(self, checkbutton):
+        self._reveal_passphrase_dec = self.entry_passphrase_toggle_dec.get_active()
+        self.entry_passphrase_dec.set_visibility(self._reveal_passphrase_dec)
 
 
 win = MainWindow()

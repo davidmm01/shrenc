@@ -55,17 +55,20 @@ def test_file_encryption_and_decryption():
         f.write("blahhhhhhh")
 
     # encrypt the test file and check the file exists
-    encrypt_file(TEST_FILE, ENCRYPTED_FILE)
+    encrypt_file(TEST_FILE, ENCRYPTED_FILE, "poops")
     assert os.path.exists(ENCRYPTED_FILE)
 
     # compare the standard and encrypt files, the content should be different
     assert not filecmp.cmp(TEST_FILE, ENCRYPTED_FILE)
 
     # check contents looks the same before and after decrypting
-    decrypt_file(ENCRYPTED_FILE, DECRYPTED_FILE)
+    decrypt_file(ENCRYPTED_FILE, DECRYPTED_FILE, "poops")
     assert os.path.exists(DECRYPTED_FILE)
     assert filecmp.cmp(TEST_FILE, DECRYPTED_FILE)
 
     # cleanup
     for file_ in (TEST_FILE, ENCRYPTED_FILE, DECRYPTED_FILE):
         os.remove(file_)
+
+
+# TODO: add a test where mismatched passphrases are passed?
