@@ -16,12 +16,9 @@ from operations import (
 )
 
 # TODO to work towards list:
-#  - provide name for decrypt output
 #  - provide option to encrypt file name also
 #  - provide multifile tar.blah to enc/dec
 #  - add logging rather than printing
-#  - provide option to supply enc/dec passphrase
-#  - add way to choose the compression format
 #  - add tox to run app, tests and style checks and stuff like that
 
 
@@ -289,7 +286,6 @@ class MainWindow(Gtk.Window):
         # TODO: add mechanism to provide a name for the compressed archive
         name = time.time()
         name = str(name).replace(".", "_")
-        # TODO: add encryption options
         compressed_name = tar_and_compress(
             self._selected_enc_filename, name, self._selected_compression
         )
