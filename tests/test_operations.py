@@ -12,7 +12,7 @@ from app.operations import (
 )
 
 
-@pytest.mark.parametrize("compression", ["tar-only", "gzip", "bz2", "lzma"])
+@pytest.mark.parametrize("compression", ["tar_only", "gzip", "bz2", "lzma"])
 def test_file_compression_and_extraction_on_single_file(compression):
     TEST_FILE = "some_file.txt"
     COMPRESSED_NAME_WO_EXT = "new_archive"

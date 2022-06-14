@@ -11,7 +11,7 @@ EXT_LZMA = ".xz"
 EXT_TAR_LZMA = EXT_TAR + EXT_LZMA
 
 PARAM_TO_TAR_COMPRESS_SETTINGS = {
-    "tar-only": {"mode": "w", "ext": EXT_TAR},
+    "tar_only": {"mode": "w", "ext": EXT_TAR},
     "gzip": {"mode": "w:gz", "ext": EXT_TAR_GZIP},
     "bz2": {"mode": "w:bz2", "ext": EXT_TAR_BZ2},
     "lzma": {"mode": "w:xz", "ext": EXT_TAR_LZMA},
@@ -40,7 +40,7 @@ def tar_and_compress(path, archive_name, compression="no-compression"):
     return output_name
 
 
-def undo_tar_and_compress(archive, new_dir=None):
+def undo_tar_and_compress(archive, dest="."):
     mode = None
     for key in EXT_TO_MODE:
         if archive.endswith(key):
@@ -50,10 +50,6 @@ def undo_tar_and_compress(archive, new_dir=None):
     if not mode:
         # TODO: raise suitable error here, and a unit test for this
         pass
-
-    dest = "."
-    if new_dir:
-        dest = f"{dest}/{new_dir}"
 
     with tarfile.open(archive, mode) as tar:
         tar.extractall(dest)

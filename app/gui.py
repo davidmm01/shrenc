@@ -41,7 +41,7 @@ class MainWindow(Gtk.Window):
         self._selected_dec_filename = SELECTED_FILE_DEC_RESET_MSG
 
         # Create the outer vertical box with a space of 100 pixel.
-        outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=100)
+        outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
 
         # Creating stack, transition type and transition duration.
         # TODO: investigate what kind of transition types are available
@@ -60,7 +60,7 @@ class MainWindow(Gtk.Window):
 
         # TODO: should not be able to hit encrypt without a passphrase
         self._reveal_passphrase_enc = False
-        # self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
+        self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
         self.entry_passphrase = Gtk.Entry()
         self.entry_passphrase.set_visibility(self._reveal_passphrase_enc)
         self.entry_passphrase_toggle = Gtk.CheckButton(label="Reveal passphrase?")
@@ -78,7 +78,7 @@ class MainWindow(Gtk.Window):
             ["gzip (.tar.gz)", "gzip"],
             ["bz2 (.tar.bz2)", "bz2"],
             ["lzma (.tar.xz)", "lzma"],
-            ["No compression (.tar)", "tar-only"],
+            ["No compression (.tar)", "tar_only"],
         ]
         for compression_option in compression_options:
             compression_store.append(compression_option)
@@ -120,13 +120,14 @@ class MainWindow(Gtk.Window):
         self.encrypt_button.set_sensitive(False)
 
         # create the box that will home all the encryption elements, and put the buttons in
-        encrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=100)
+        encrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
+        # TODO: this choose file needs to be a "choose file OR folder"
         encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
-        encrypt_box.pack_start(self._selected_compression_label, True, True, 0)
-        # encrypt_box.pack_start(self.entry_passphrase_label, True, True, 0)
+        encrypt_box.pack_start(self.entry_passphrase_label, True, True, 0)
         encrypt_box.pack_start(self.entry_passphrase, True, True, 0)
         encrypt_box.pack_start(self.entry_passphrase_toggle, True, True, 0)
+        encrypt_box.pack_start(self._selected_compression_label, True, True, 0)
         encrypt_box.pack_start(self.compression_combo, True, True, 0)
         encrypt_box.pack_start(self.armor_toggle, True, True, 0)
         encrypt_box.pack_start(self._select_cypher_label, True, True, 0)
@@ -146,12 +147,20 @@ class MainWindow(Gtk.Window):
 
         # TODO: should not be able to hit encrypt without a passphrase
         self._reveal_passphrase_dec = False
-        # self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
+        self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
         self.entry_passphrase_dec = Gtk.Entry()
         self.entry_passphrase_dec.set_visibility(self._reveal_passphrase_enc)
         self.entry_passphrase_toggle_dec = Gtk.CheckButton(label="Reveal passphrase?")
         self.entry_passphrase_toggle_dec.connect(
             "toggled", self.on_entry_passphrase_dec_toggled
+        )
+        self._decrypt_location = "./OUTPUT"
+        self.choose_dec_location_button = Gtk.Button(label="Select decryption location")
+        self.choose_dec_location_button.connect(
+            "clicked", self.on_choose_dec_location_button_clicked
+        )
+        self.decrypt_location_label = Gtk.Label(
+            label=f"Selected output location: {self._decrypt_location}"
         )
 
         self.dec_outcome_label = Gtk.Label(label="")
@@ -160,11 +169,13 @@ class MainWindow(Gtk.Window):
         self.decrypt_button.set_sensitive(False)
 
         # create the box that will home all the decryption elements, and put the buttons in
-        decrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=100)
+        decrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         decrypt_box.pack_start(choose_file_dec_button, True, True, 0)
         decrypt_box.pack_start(self.chosen_file_dec_label, True, True, 0)
         decrypt_box.pack_start(self.entry_passphrase_dec, True, True, 0)
         decrypt_box.pack_start(self.entry_passphrase_toggle_dec, True, True, 0)
+        decrypt_box.pack_start(self.choose_dec_location_button, True, True, 0)
+        decrypt_box.pack_start(self.decrypt_location_label, True, True, 0)
         decrypt_box.pack_start(
             self.decrypt_button, True, True, 0
         )  # TODO: figure out these other params
@@ -249,6 +260,30 @@ class MainWindow(Gtk.Window):
 
         dialog.destroy()
 
+    def on_choose_dec_location_button_clicked(self, widget):
+        dialog = Gtk.FileChooserDialog(
+            title="Please choose a folder",
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, "Select", Gtk.ResponseType.OK
+        )
+        dialog.set_default_size(800, 400)
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            print("Select clicked")
+            print("Folder selected: " + dialog.get_filename())
+            self._decrypt_location = dialog.get_filename()
+            self.decrypt_location_label.set_text(
+                f"Selected output location: {self._decrypt_location}"
+            )
+        elif response == Gtk.ResponseType.CANCEL:
+            print("Cancel clicked")
+
+        dialog.destroy()
+
     def on_encrypt_clicked(self, widget):
         print("encrypt was clicked!!!!!!!")
         # TODO: add mechanism to provide a name for the compressed archive
@@ -291,12 +326,14 @@ class MainWindow(Gtk.Window):
             self.entry_passphrase_dec.get_text(),
         )
         print(f"finished decryption, new file exists {decryted_name}")
-        undo_tar_and_compress(decryted_name, "OUTPUT")
+        undo_tar_and_compress(decryted_name, self._decrypt_location)
         print("finished uncompressing")
         os.remove(decryted_name)
         # TODO: the file that ends up in output has so many subdirs, find out why
         # TODO: all of this can probs go in some reset function thats also called on init
-        self.dec_outcome_label.set_text("Success!: Created new file in OUTPUT dir")
+        self.dec_outcome_label.set_text(
+            f"Success! Extracted to {self._decrypt_location}"
+        )
         self.chosen_file_dec_label.set_text(SELECTED_FILE_DEC_RESET_MSG)
         self._selected_dec_filename = None
         self.decrypt_button.set_sensitive(False)
