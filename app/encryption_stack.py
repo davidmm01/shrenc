@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 import time
 import gi
 
@@ -8,38 +10,56 @@ from gi.repository import Gtk
 from operations import encrypt_file, tar_and_compress
 
 
+# initial/default labels and prompts
 SELECTED_FILE_ENC_RESET_MSG = "File to encrypt: None chosen"
+CHOOSE_FILE_BUTTON_TEXT = "Choose File"
+ENCRYPT_BUTTON_TEXT = "Encrypt"
+OUTCOME_INIT_TEXT = ""
+ARMOR_TOGGLE_TEXT = "Use armor?"
+PASSPHRASE_TOGGLE_VISIBILITY_TEXT = "Reveal passphrase?"
+COMPRESSION_SELECTION_PROMPT = "Select compression"
+ENTER_PASSPHRASE_PROMPT = "Enter encryption passphrase"
+CYPHER_SELECTION_PROMPT = "Select cypher algorithm"
 
 
 class EncryptionStack:
     def __init__(self, main_window):
-        self.main_window = main_window
+        self._main_window = main_window
+
+        # File selection
         self._selected_enc_filename = None
-        # make choose file and encrypt buttons
-        choose_file_enc_button = Gtk.Button(label="Choose File")
-        choose_file_enc_button.connect("clicked", self.on_choose_file_enc_clicked)
-        self.chosen_file_enc_label = Gtk.Label(label=SELECTED_FILE_ENC_RESET_MSG)
-        self.enc_outcome_label = Gtk.Label(label="")
-        self.encrypt_button = Gtk.Button(label="Encrypt")
-        self.encrypt_button.connect("clicked", self.on_encrypt_clicked)
-        self.armor_toggle = Gtk.CheckButton(label="Use armor?")
+        choose_file_button = Gtk.Button(label=CHOOSE_FILE_BUTTON_TEXT)
+        choose_file_button.connect("clicked", self._on_choose_file_enc_clicked)
+        self._chosen_file_label = Gtk.Label(label=SELECTED_FILE_ENC_RESET_MSG)
 
-        # TODO: should not be able to hit encrypt without a passphrase
-        self._reveal_passphrase_enc = False
-        self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
-        self.entry_passphrase = Gtk.Entry()
-        self._enc_passphrase_entered = None
-        self.entry_passphrase.set_visibility(self._reveal_passphrase_enc)
-        self.entry_passphrase.connect("changed", self.on_enc_entry_passphrase_changed)
-        self.entry_passphrase_toggle = Gtk.CheckButton(label="Reveal passphrase?")
-        self.entry_passphrase_toggle.connect(
-            "toggled", self.on_entry_passphrase_toggled
+        # Outcome feedback
+        self._outcome_label = Gtk.Label(label=OUTCOME_INIT_TEXT)
+
+        # Encryption button
+        self._encrypt_button = Gtk.Button(label=ENCRYPT_BUTTON_TEXT)
+        self._encrypt_button.connect("clicked", self._on_encrypt_clicked)
+        self._encrypt_button.set_sensitive(False)
+
+        # Amor toggle
+        self._armor_toggle = Gtk.CheckButton(label=ARMOR_TOGGLE_TEXT)
+
+        # Passphrase entry and associated controls
+        entry_passphrase_label = Gtk.Label(label=ENTER_PASSPHRASE_PROMPT)
+        self._entry_passphrase_toggle = Gtk.CheckButton(
+            label=PASSPHRASE_TOGGLE_VISIBILITY_TEXT
         )
+        self._entry_passphrase_toggle.connect(
+            "toggled", self._on_entry_passphrase_toggled
+        )
+        self._entry_passphrase = Gtk.Entry()
+        self._enc_passphrase_entered = None
+        self._entry_passphrase.set_visibility(
+            self._entry_passphrase_toggle.get_active()
+        )
+        self._entry_passphrase.connect("changed", self._on_enc_entry_passphrase_changed)
 
-        # need this so the labels in the various list stores actually get applied to the comboboxes
-        renderer_text = Gtk.CellRendererText()
-
-        self._selected_compression_label = Gtk.Label(label="Select compression")
+        # Compression selection
+        selected_compression_label = Gtk.Label(label=COMPRESSION_SELECTION_PROMPT)
         self._selected_compression = "gzip"
         compression_store = Gtk.ListStore(str, str)
         compression_options = [
@@ -50,15 +70,17 @@ class EncryptionStack:
         ]
         for compression_option in compression_options:
             compression_store.append(compression_option)
-        self.compression_combo = Gtk.ComboBox.new_with_model(compression_store)
-        self.compression_combo.connect("changed", self.on_compression_combo_changed)
-        self.compression_combo.set_entry_text_column(0)
+        compression_combo = Gtk.ComboBox.new_with_model(compression_store)
+        compression_combo.connect("changed", self._on_compression_combo_changed)
+        compression_combo.set_entry_text_column(0)
+        # need this so the labels in the various list stores actually get applied to the comboboxes
+        renderer_text = Gtk.CellRendererText()
+        compression_combo.pack_start(renderer_text, True)
+        compression_combo.add_attribute(renderer_text, "text", 0)
+        compression_combo.set_active(0)  # set zgip as the default
 
-        self.compression_combo.pack_start(renderer_text, True)
-        self.compression_combo.add_attribute(renderer_text, "text", 0)
-        self.compression_combo.set_active(0)  # set zgip as the default
-
-        self._select_cypher_label = Gtk.Label(label="Select cypher algorithm")
+        # Cypher selection
+        select_cypher_label = Gtk.Label(label=CYPHER_SELECTION_PROMPT)
         self._selected_cypher = "AES256"
         cypher_store = Gtk.ListStore(str)
         # TODO: could the available cyphers be worked out from the version
@@ -79,50 +101,49 @@ class EncryptionStack:
         ]
         for cypher in cyphers:
             cypher_store.append([cypher])
-        self.cypher_combo = Gtk.ComboBox.new_with_model(cypher_store)
-        self.cypher_combo.connect("changed", self.on_cypher_combo_changed)
+        cypher_combo = Gtk.ComboBox.new_with_model(cypher_store)
+        cypher_combo.connect("changed", self._on_cypher_combo_changed)
+        cypher_combo.pack_start(renderer_text, True)
+        cypher_combo.add_attribute(renderer_text, "text", 0)
+        cypher_combo.set_active(6)  # set AES256 as the default
 
-        self.cypher_combo.pack_start(renderer_text, True)
-        self.cypher_combo.add_attribute(renderer_text, "text", 0)
-        self.cypher_combo.set_active(6)  # set AES256 as the default
-        self.encrypt_button.set_sensitive(False)
-
-        # create the box that will home all the encryption elements, and put the buttons in
+        # Create the box that will home all the encryption elements, and put
+        # everything inside
         self.encrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.encrypt_box.pack_start(choose_file_enc_button, True, True, 0)
+        self.encrypt_box.pack_start(choose_file_button, True, True, 0)
         # TODO: this choose file needs to be a "choose file OR folder"
-        self.encrypt_box.pack_start(self.chosen_file_enc_label, True, True, 0)
-        self.encrypt_box.pack_start(self.entry_passphrase_label, True, True, 0)
-        self.encrypt_box.pack_start(self.entry_passphrase, True, True, 0)
-        self.encrypt_box.pack_start(self.entry_passphrase_toggle, True, True, 0)
-        self.encrypt_box.pack_start(self._selected_compression_label, True, True, 0)
-        self.encrypt_box.pack_start(self.compression_combo, True, True, 0)
-        self.encrypt_box.pack_start(self.armor_toggle, True, True, 0)
-        self.encrypt_box.pack_start(self._select_cypher_label, True, True, 0)
-        self.encrypt_box.pack_start(self.cypher_combo, True, True, 0)
+        self.encrypt_box.pack_start(self._chosen_file_label, True, True, 0)
+        self.encrypt_box.pack_start(entry_passphrase_label, True, True, 0)
+        self.encrypt_box.pack_start(self._entry_passphrase, True, True, 0)
+        self.encrypt_box.pack_start(self._entry_passphrase_toggle, True, True, 0)
+        self.encrypt_box.pack_start(selected_compression_label, True, True, 0)
+        self.encrypt_box.pack_start(compression_combo, True, True, 0)
+        self.encrypt_box.pack_start(self._armor_toggle, True, True, 0)
+        self.encrypt_box.pack_start(select_cypher_label, True, True, 0)
+        self.encrypt_box.pack_start(cypher_combo, True, True, 0)
         self.encrypt_box.pack_start(
-            self.encrypt_button, True, True, 0
+            self._encrypt_button, True, True, 0
         )  # TODO: figure out these other params
-        self.encrypt_box.pack_start(self.enc_outcome_label, True, True, 0)
+        self.encrypt_box.pack_start(self._outcome_label, True, True, 0)
 
-    def on_cypher_combo_changed(self, combo):
+    def _on_cypher_combo_changed(self, combo):
         tree_iter = combo.get_active_iter()
         if tree_iter is not None:
             model = combo.get_model()
             self._selected_cypher = model[tree_iter][0]
             print("Selected: cypher=%s" % self._selected_cypher)
 
-    def on_compression_combo_changed(self, combo):
+    def _on_compression_combo_changed(self, combo):
         tree_iter = combo.get_active_iter()
         if tree_iter is not None:
             model = combo.get_model()
             self._selected_compression = model[tree_iter][1]
             print("selected compression:", self._selected_compression)
 
-    def on_choose_file_enc_clicked(self, widget):
+    def _on_choose_file_enc_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title="Please choose a file",
-            parent=self.main_window,
+            parent=self._main_window,
             action=Gtk.FileChooserAction.OPEN,
         )
         dialog.add_buttons(
@@ -137,16 +158,16 @@ class EncryptionStack:
             print("Open clicked")
             print("File selected: " + dialog.get_filename())
             self._selected_enc_filename = dialog.get_filename()
-            self.chosen_file_enc_label.set_text(
+            self._chosen_file_label.set_text(
                 "File to encrypt: " + self._selected_enc_filename
             )
-            self.update_encryption_button_sensitivity()
+            self._update_encryption_button_sensitivity()
         elif response == Gtk.ResponseType.CANCEL:
             print("Cancel clicked")
 
         dialog.destroy()
 
-    def on_encrypt_clicked(self, widget):
+    def _on_encrypt_clicked(self, widget):
         print("encrypt was clicked!!!!!!!")
         # TODO: add mechanism to provide a name for the compressed archive
         name = time.time()
@@ -161,35 +182,35 @@ class EncryptionStack:
             encrypted_name,
             self._enc_passphrase_entered,
             symmetric=self._selected_cypher,
-            armor=self.armor_toggle.get_active(),
+            armor=self._armor_toggle.get_active(),
         )
         print(
             "finished encrypting with "
             f"passphrase={self._enc_passphrase_entered} "
             f"cypher={self._selected_cypher} "
-            f"armor={self.armor_toggle.get_active()}"
+            f"armor={self._armor_toggle.get_active()}"
         )
         print(f"new file exists {encrypted_name}")
         print(f"removing intermediate file {compressed_name}")
         os.remove(compressed_name)
         # TODO: all of this can probs go in some reset function thats also called on init
-        self.enc_outcome_label.set_text("Success!: Created " + encrypted_name)
-        self.chosen_file_enc_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
+        self._outcome_label.set_text("Success!: Created " + encrypted_name)
+        self._chosen_file_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
         self._selected_enc_filename = None
-        self.encrypt_button.set_sensitive(False)
+        self._encrypt_button.set_sensitive(False)
 
-    def on_enc_entry_passphrase_changed(self, widget):
-        self._enc_passphrase_entered = self.entry_passphrase.get_text()
-        self.update_encryption_button_sensitivity()
+    def _on_enc_entry_passphrase_changed(self, widget):
+        self._enc_passphrase_entered = self._entry_passphrase.get_text()
+        self._update_encryption_button_sensitivity()
 
-    def on_entry_passphrase_toggled(self, checkbutton):
-        # is it necessary to have the self._reveal_passphrase_enc attr?
-        self._reveal_passphrase_enc = self.entry_passphrase_toggle.get_active()
-        self.entry_passphrase.set_visibility(self._reveal_passphrase_enc)
+    def _on_entry_passphrase_toggled(self, checkbutton):
+        self._entry_passphrase.set_visibility(
+            self._entry_passphrase_toggle.get_active()
+        )
 
-    def update_encryption_button_sensitivity(self):
+    def _update_encryption_button_sensitivity(self):
         print("self._enc_passphrase_entered:", self._enc_passphrase_entered)
         print("self._selected_enc_filename:", self._selected_enc_filename)
 
         sensitivity = self._enc_passphrase_entered and self._selected_enc_filename
-        self.encrypt_button.set_sensitive(sensitivity)
+        self._encrypt_button.set_sensitive(sensitivity)

@@ -11,13 +11,12 @@ SELECTED_FILE_DEC_RESET_MSG = "File to decrypt: None chosen"
 
 class DecryptionStack:
     def __init__(self, main_window):
-        self.main_window = main_window
+        self._main_window = main_window
         self._selected_dec_filename = None
         choose_file_dec_button = Gtk.Button(label="Choose File")
         choose_file_dec_button.connect("clicked", self.on_choose_file_dec_clicked)
         self.chosen_file_dec_label = Gtk.Label(label=SELECTED_FILE_DEC_RESET_MSG)
 
-        # TODO: should not be able to hit encrypt without a passphrase
         self._reveal_passphrase_dec = False
         self.entry_passphrase_label = Gtk.Label(label="Enter encryption passphrase")
         self.entry_passphrase_dec = Gtk.Entry()
@@ -60,7 +59,7 @@ class DecryptionStack:
     def on_choose_file_dec_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title="Please choose a file",
-            parent=self.main_window,
+            parent=self._main_window,
             action=Gtk.FileChooserAction.OPEN,
         )
         dialog.add_buttons(
@@ -87,7 +86,7 @@ class DecryptionStack:
     def on_choose_dec_location_button_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title="Please choose a folder",
-            parent=self.main_window,
+            parent=self._main_window,
             action=Gtk.FileChooserAction.SELECT_FOLDER,
         )
         dialog.add_buttons(
