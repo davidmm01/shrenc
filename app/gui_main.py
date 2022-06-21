@@ -33,11 +33,11 @@ class MainWindow(Gtk.Window):
 
         # add encrypt box to encrypt stack
         encryption_stack = EncryptionStack(self)
-        stack.add_titled(encryption_stack.encrypt_box, "encrypt_box", "Encrypt")
+        stack.add_titled(encryption_stack.box, "encrypt_box", "Encrypt")
 
         # add decrypt box to encrypt stack
         decrypt_stack = DecryptionStack(self)
-        stack.add_titled(decrypt_stack.decrypt_box, "decrypt_box", "Decrypt")
+        stack.add_titled(decrypt_stack.box, "decrypt_box", "Decrypt")
 
         # Implementation of stack switcher.
         stack_switcher = Gtk.StackSwitcher()

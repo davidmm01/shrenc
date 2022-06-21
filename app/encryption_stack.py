@@ -1,6 +1,4 @@
-import logging
 import os
-import sys
 import time
 import gi
 
@@ -11,7 +9,7 @@ from operations import encrypt_file, tar_and_compress
 
 
 # initial/default labels and prompts
-SELECTED_FILE_ENC_RESET_MSG = "File to encrypt: None chosen"
+SELECTED_FILE_RESET_MSG = "File to encrypt: None chosen"
 CHOOSE_FILE_BUTTON_TEXT = "Choose File"
 ENCRYPT_BUTTON_TEXT = "Encrypt"
 OUTCOME_INIT_TEXT = ""
@@ -27,10 +25,10 @@ class EncryptionStack:
         self._main_window = main_window
 
         # File selection
-        self._selected_enc_filename = None
+        self._selected_filename = None
         choose_file_button = Gtk.Button(label=CHOOSE_FILE_BUTTON_TEXT)
-        choose_file_button.connect("clicked", self._on_choose_file_enc_clicked)
-        self._chosen_file_label = Gtk.Label(label=SELECTED_FILE_ENC_RESET_MSG)
+        choose_file_button.connect("clicked", self._on_choose_file_clicked)
+        self._chosen_file_label = Gtk.Label(label=SELECTED_FILE_RESET_MSG)
 
         # Outcome feedback
         self._outcome_label = Gtk.Label(label=OUTCOME_INIT_TEXT)
@@ -56,7 +54,7 @@ class EncryptionStack:
         self._entry_passphrase.set_visibility(
             self._entry_passphrase_toggle.get_active()
         )
-        self._entry_passphrase.connect("changed", self._on_enc_entry_passphrase_changed)
+        self._entry_passphrase.connect("changed", self._on_entry_passphrase_changed)
 
         # Compression selection
         selected_compression_label = Gtk.Label(label=COMPRESSION_SELECTION_PROMPT)
@@ -109,22 +107,22 @@ class EncryptionStack:
 
         # Create the box that will home all the encryption elements, and put
         # everything inside
-        self.encrypt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self.encrypt_box.pack_start(choose_file_button, True, True, 0)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.box.pack_start(choose_file_button, True, True, 0)
         # TODO: this choose file needs to be a "choose file OR folder"
-        self.encrypt_box.pack_start(self._chosen_file_label, True, True, 0)
-        self.encrypt_box.pack_start(entry_passphrase_label, True, True, 0)
-        self.encrypt_box.pack_start(self._entry_passphrase, True, True, 0)
-        self.encrypt_box.pack_start(self._entry_passphrase_toggle, True, True, 0)
-        self.encrypt_box.pack_start(selected_compression_label, True, True, 0)
-        self.encrypt_box.pack_start(compression_combo, True, True, 0)
-        self.encrypt_box.pack_start(self._armor_toggle, True, True, 0)
-        self.encrypt_box.pack_start(select_cypher_label, True, True, 0)
-        self.encrypt_box.pack_start(cypher_combo, True, True, 0)
-        self.encrypt_box.pack_start(
+        self.box.pack_start(self._chosen_file_label, True, True, 0)
+        self.box.pack_start(entry_passphrase_label, True, True, 0)
+        self.box.pack_start(self._entry_passphrase, True, True, 0)
+        self.box.pack_start(self._entry_passphrase_toggle, True, True, 0)
+        self.box.pack_start(selected_compression_label, True, True, 0)
+        self.box.pack_start(compression_combo, True, True, 0)
+        self.box.pack_start(self._armor_toggle, True, True, 0)
+        self.box.pack_start(select_cypher_label, True, True, 0)
+        self.box.pack_start(cypher_combo, True, True, 0)
+        self.box.pack_start(
             self._encrypt_button, True, True, 0
         )  # TODO: figure out these other params
-        self.encrypt_box.pack_start(self._outcome_label, True, True, 0)
+        self.box.pack_start(self._outcome_label, True, True, 0)
 
     def _on_cypher_combo_changed(self, combo):
         tree_iter = combo.get_active_iter()
@@ -140,7 +138,7 @@ class EncryptionStack:
             self._selected_compression = model[tree_iter][1]
             print("selected compression:", self._selected_compression)
 
-    def _on_choose_file_enc_clicked(self, widget):
+    def _on_choose_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title="Please choose a file",
             parent=self._main_window,
@@ -157,9 +155,9 @@ class EncryptionStack:
         if response == Gtk.ResponseType.OK:
             print("Open clicked")
             print("File selected: " + dialog.get_filename())
-            self._selected_enc_filename = dialog.get_filename()
+            self._selected_filename = dialog.get_filename()
             self._chosen_file_label.set_text(
-                "File to encrypt: " + self._selected_enc_filename
+                "File to encrypt: " + self._selected_filename
             )
             self._update_encryption_button_sensitivity()
         elif response == Gtk.ResponseType.CANCEL:
@@ -173,7 +171,7 @@ class EncryptionStack:
         name = time.time()
         name = str(name).replace(".", "_")
         compressed_name = tar_and_compress(
-            self._selected_enc_filename, name, self._selected_compression
+            self._selected_filename, name, self._selected_compression
         )
         print(f"finished compressing file {compressed_name}")
         encrypted_name = compressed_name + ".enc"
@@ -195,11 +193,11 @@ class EncryptionStack:
         os.remove(compressed_name)
         # TODO: all of this can probs go in some reset function thats also called on init
         self._outcome_label.set_text("Success!: Created " + encrypted_name)
-        self._chosen_file_label.set_text(SELECTED_FILE_ENC_RESET_MSG)
-        self._selected_enc_filename = None
+        self._chosen_file_label.set_text(SELECTED_FILE_RESET_MSG)
+        self._selected_filename = None
         self._encrypt_button.set_sensitive(False)
 
-    def _on_enc_entry_passphrase_changed(self, widget):
+    def _on_entry_passphrase_changed(self, widget):
         self._enc_passphrase_entered = self._entry_passphrase.get_text()
         self._update_encryption_button_sensitivity()
 
@@ -210,7 +208,7 @@ class EncryptionStack:
 
     def _update_encryption_button_sensitivity(self):
         print("self._enc_passphrase_entered:", self._enc_passphrase_entered)
-        print("self._selected_enc_filename:", self._selected_enc_filename)
+        print("self._selected_filename:", self._selected_filename)
 
-        sensitivity = self._enc_passphrase_entered and self._selected_enc_filename
+        sensitivity = self._enc_passphrase_entered and self._selected_filename
         self._encrypt_button.set_sensitive(sensitivity)
