@@ -1,11 +1,14 @@
+import logging
 import os
 import time
+
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
-
 from operations import encrypt_file, tar_and_compress
+
+logger = logging.getLogger(__name__)
 
 
 # initial/default labels and prompts
@@ -18,6 +21,7 @@ PASSPHRASE_TOGGLE_VISIBILITY_TEXT = "Reveal passphrase?"
 COMPRESSION_SELECTION_PROMPT = "Select compression"
 ENTER_PASSPHRASE_PROMPT = "Enter encryption passphrase"
 CYPHER_SELECTION_PROMPT = "Select cypher algorithm"
+FILE_PICKER_PROMPT = "Please choose a file"
 
 
 class EncryptionStack:
@@ -129,18 +133,18 @@ class EncryptionStack:
         if tree_iter is not None:
             model = combo.get_model()
             self._selected_cypher = model[tree_iter][0]
-            print("Selected: cypher=%s" % self._selected_cypher)
+            logger.debug(f"self._selected_cypher={self._selected_cypher}")
 
     def _on_compression_combo_changed(self, combo):
         tree_iter = combo.get_active_iter()
         if tree_iter is not None:
             model = combo.get_model()
             self._selected_compression = model[tree_iter][1]
-            print("selected compression:", self._selected_compression)
+            logger.debug(f"self._selected_compression={self._selected_compression}")
 
     def _on_choose_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Please choose a file",
+            title=FILE_PICKER_PROMPT,
             parent=self._main_window,
             action=Gtk.FileChooserAction.OPEN,
         )
@@ -153,27 +157,23 @@ class EncryptionStack:
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            print("Open clicked")
-            print("File selected: " + dialog.get_filename())
             self._selected_filename = dialog.get_filename()
+            logger.debug(f"self._selected_filename={self._selected_filename}")
             self._chosen_file_label.set_text(
                 "File to encrypt: " + self._selected_filename
             )
             self._update_encryption_button_sensitivity()
-        elif response == Gtk.ResponseType.CANCEL:
-            print("Cancel clicked")
 
         dialog.destroy()
 
     def _on_encrypt_clicked(self, widget):
-        print("encrypt was clicked!!!!!!!")
         # TODO: add mechanism to provide a name for the compressed archive
         name = time.time()
         name = str(name).replace(".", "_")
         compressed_name = tar_and_compress(
             self._selected_filename, name, self._selected_compression
         )
-        print(f"finished compressing file {compressed_name}")
+        logger.debug(f"finished compressing file {compressed_name}")
         encrypted_name = compressed_name + ".enc"
         encrypt_file(
             compressed_name,
@@ -182,14 +182,14 @@ class EncryptionStack:
             symmetric=self._selected_cypher,
             armor=self._armor_toggle.get_active(),
         )
-        print(
+        logger.info(
             "finished encrypting with "
             f"passphrase={self._enc_passphrase_entered} "
             f"cypher={self._selected_cypher} "
-            f"armor={self._armor_toggle.get_active()}"
+            f"armor={self._armor_toggle.get_active()} "
+            f"file_created={encrypted_name} "
         )
-        print(f"new file exists {encrypted_name}")
-        print(f"removing intermediate file {compressed_name}")
+        logger.debug(f"removing intermediate file {compressed_name}")
         os.remove(compressed_name)
         # TODO: all of this can probs go in some reset function thats also called on init
         self._outcome_label.set_text("Success!: Created " + encrypted_name)
@@ -207,8 +207,5 @@ class EncryptionStack:
         )
 
     def _update_encryption_button_sensitivity(self):
-        print("self._enc_passphrase_entered:", self._enc_passphrase_entered)
-        print("self._selected_filename:", self._selected_filename)
-
         sensitivity = self._enc_passphrase_entered and self._selected_filename
         self._encrypt_button.set_sensitive(sensitivity)

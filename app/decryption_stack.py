@@ -1,10 +1,13 @@
+import logging
 import os
+
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
-
 from operations import decrypt_file, undo_tar_and_compress
+
+logger = logging.getLogger(__name__)
 
 
 # initial/default labels and prompts
@@ -14,6 +17,8 @@ ENTER_PASSPHRASE_PROMPT = "Enter decryption passphrase"
 PASSPHRASE_TOGGLE_VISIBILITY_TEXT = "Reveal passphrase?"
 SELECT_DECRYPTION_LOCATION_PROMPT = "Select decryption location"
 DECRYPT_BUTTON_TEXT = "Decrypt"
+FILE_PICKER_PROMPT = "Please choose a file"
+LOCATION_PICKER_PROMPT = "Please choose a folder"
 
 
 class DecryptionStack:
@@ -68,14 +73,12 @@ class DecryptionStack:
         self.box.pack_start(self._entry_passphrase_toggle, True, True, 0)
         self.box.pack_start(self.choose_dec_location_button, True, True, 0)
         self.box.pack_start(self.decrypt_location_label, True, True, 0)
-        self.box.pack_start(
-            self.decrypt_button, True, True, 0
-        )  # TODO: figure out these other params
+        self.box.pack_start(self.decrypt_button, True, True, 0)
         self.box.pack_start(self._outcome_label, True, True, 0)
 
     def _on_choose_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Please choose a file",
+            title=FILE_PICKER_PROMPT,
             parent=self._main_window,
             action=Gtk.FileChooserAction.OPEN,
         )
@@ -88,21 +91,18 @@ class DecryptionStack:
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            print("Open clicked")
-            print("File selected: " + dialog.get_filename())
             self._selected_filename = dialog.get_filename()
             self._chosen_file_label.set_text(
                 "File to decrypt: " + self._selected_filename
             )
+            logger.debug(f"self._selected_filename={self._selected_filename}")
             self._update_decryption_button_sensitivity()
-        elif response == Gtk.ResponseType.CANCEL:
-            print("Cancel clicked")
 
         dialog.destroy()
 
     def _on_choose_dec_location_button_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Please choose a folder",
+            title=LOCATION_PICKER_PROMPT,
             parent=self._main_window,
             action=Gtk.FileChooserAction.SELECT_FOLDER,
         )
@@ -113,28 +113,24 @@ class DecryptionStack:
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            print("Select clicked")
-            print("Folder selected: " + dialog.get_filename())
             self._decrypt_location = dialog.get_filename()
+            logger.debug(f"self._decrypt_location={self._decrypt_location}")
             self.decrypt_location_label.set_text(
                 f"Selected output location: {self._decrypt_location}"
             )
-        elif response == Gtk.ResponseType.CANCEL:
-            print("Cancel clicked")
 
         dialog.destroy()
 
     def _on_decrypt_clicked(self, widget):
-        print("decrypt was clicked!!!!!!!")
         decryted_name = self._selected_filename.rstrip(".enc")
         decrypt_file(
             self._selected_filename,
             decryted_name,
             self._entry_passphrase.get_text(),
         )
-        print(f"finished decryption, new file exists {decryted_name}")
+        logger.debug(f"finished decryption, new file exists {decryted_name}")
         undo_tar_and_compress(decryted_name, self._decrypt_location)
-        print("finished uncompressing")
+        logger.info("finished uncompressing")
         os.remove(decryted_name)
         # TODO: the file that ends up in output has so many subdirs, find out why
         # TODO: all of this can probs go in some reset function thats also called on init

@@ -1,3 +1,5 @@
+import logging
+
 import gi
 
 # Since a system can have multiple versions
@@ -12,7 +14,6 @@ from gi.repository import Gtk
 # TODO to work towards list:
 #  - provide option to encrypt file name also
 #  - provide multifile tar.blah to enc/dec
-#  - add logging rather than printing
 #  - add tox to run app, tests and style checks and stuff like that
 
 
@@ -52,6 +53,8 @@ class MainWindow(Gtk.Window):
 
 
 def run():
+    # TODO: add convenient mechanism to control the log level
+    logging.basicConfig(level=logging.INFO)
     win = MainWindow()
     win.connect("destroy", Gtk.main_quit)
     win.show_all()
