@@ -1,12 +1,15 @@
+import datetime
 import logging
 import os
+import random
+import string
 import time
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
-from operations import encrypt_file, tar_and_compress
+from operations import encrypt_file, PARAM_TO_TAR_COMPRESS_SETTINGS, tar_and_compress
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +25,9 @@ COMPRESSION_SELECTION_PROMPT = "Select compression"
 ENTER_PASSPHRASE_PROMPT = "Enter encryption passphrase"
 CYPHER_SELECTION_PROMPT = "Select cypher algorithm"
 FILE_PICKER_PROMPT = "Please choose a file"
+OUTPUT_NAMING_PROMPT = "Choose name of encrypted file"
+
+RANDOM_PASSWORD_LENGTH = 12
 
 
 class EncryptionStack:
@@ -59,6 +65,34 @@ class EncryptionStack:
             self._entry_passphrase_toggle.get_active()
         )
         self._entry_passphrase.connect("changed", self._on_entry_passphrase_changed)
+
+        # Output naming controls
+        output_naming_label = Gtk.Label(label=OUTPUT_NAMING_PROMPT)
+        output_naming_radio_box = Gtk.Box(spacing=6)
+        radio_button_1 = Gtk.RadioButton.new_with_label_from_widget(
+            None, "Epoch timestamp"
+        )
+        radio_button_1.connect("toggled", self._on_radio_button_toggled, "epoch")
+        radio_button_2 = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_1, "ISO timestamp"
+        )
+        radio_button_2.connect("toggled", self._on_radio_button_toggled, "iso")
+        radio_button_3 = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_2, "Garbage"
+        )
+        radio_button_3.connect("toggled", self._on_radio_button_toggled, "random")
+        radio_button_4 = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_3, "Custom"
+        )
+        radio_button_4.connect("toggled", self._on_radio_button_toggled, "custom")
+
+        output_naming_radio_box.pack_start(radio_button_1, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_2, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_3, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_4, False, False, 0)
+        self._output_naming_entry = Gtk.Entry()
+        self._output_naming_entry.set_editable(False)
+        self._set_epoch_on_output_naming_entry()
 
         # Compression selection
         selected_compression_label = Gtk.Label(label=COMPRESSION_SELECTION_PROMPT)
@@ -123,6 +157,9 @@ class EncryptionStack:
         self.box.pack_start(self._armor_toggle, True, True, 0)
         self.box.pack_start(select_cypher_label, True, True, 0)
         self.box.pack_start(cypher_combo, True, True, 0)
+        self.box.pack_start(output_naming_label, True, True, 0)
+        self.box.pack_start(output_naming_radio_box, True, True, 0)
+        self.box.pack_start(self._output_naming_entry, True, True, 0)
         self.box.pack_start(
             self._encrypt_button, True, True, 0
         )  # TODO: figure out these other params
@@ -141,6 +178,7 @@ class EncryptionStack:
             model = combo.get_model()
             self._selected_compression = model[tree_iter][1]
             logger.debug(f"self._selected_compression={self._selected_compression}")
+            self._apply_ext_to_output_naming_entry()
 
     def _on_choose_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
@@ -167,17 +205,16 @@ class EncryptionStack:
         dialog.destroy()
 
     def _on_encrypt_clicked(self, widget):
-        # TODO: add mechanism to provide a name for the compressed archive
-        name = time.time()
-        name = str(name).replace(".", "_")
+        # TODO: add a warning if the chosen name does have the right extension
+        temp_filename = time.time()
+        temp_filename = str(temp_filename).replace(".", "_")
         compressed_name = tar_and_compress(
-            self._selected_filename, name, self._selected_compression
+            self._selected_filename, temp_filename, self._selected_compression
         )
         logger.debug(f"finished compressing file {compressed_name}")
-        encrypted_name = compressed_name + ".enc"
         encrypt_file(
             compressed_name,
-            encrypted_name,
+            self._output_naming_entry.get_text(),
             self._enc_passphrase_entered,
             symmetric=self._selected_cypher,
             armor=self._armor_toggle.get_active(),
@@ -187,12 +224,14 @@ class EncryptionStack:
             f"passphrase={self._enc_passphrase_entered} "
             f"cypher={self._selected_cypher} "
             f"armor={self._armor_toggle.get_active()} "
-            f"file_created={encrypted_name} "
+            f"file_created={self._output_naming_entry.get_text()} "
         )
         logger.debug(f"removing intermediate file {compressed_name}")
         os.remove(compressed_name)
         # TODO: all of this can probs go in some reset function thats also called on init
-        self._outcome_label.set_text("Success!: Created " + encrypted_name)
+        self._outcome_label.set_text(
+            "Success!: Created " + self._output_naming_entry.get_text()
+        )
         self._chosen_file_label.set_text(SELECTED_FILE_RESET_MSG)
         self._selected_filename = None
         self._encrypt_button.set_sensitive(False)
@@ -209,3 +248,52 @@ class EncryptionStack:
     def _update_encryption_button_sensitivity(self):
         sensitivity = self._enc_passphrase_entered and self._selected_filename
         self._encrypt_button.set_sensitive(sensitivity)
+
+    def _on_radio_button_toggled(self, button, name):
+        # TODO: all of these should make the cell LOOK uneditable other than `custom`
+
+        if name == "epoch" and button.get_active():
+            self._output_naming_entry.set_editable(False)
+            self._set_epoch_on_output_naming_entry()
+
+        elif name == "iso" and button.get_active():
+            self._output_naming_entry.set_editable(False)
+            self._output_naming_entry.set_text(
+                datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+            )
+
+        elif name == "random" and button.get_active():
+            self._output_naming_entry.set_editable(False)
+            letters = string.ascii_lowercase
+            result_str = "".join(
+                random.choice(letters) for i in range(RANDOM_PASSWORD_LENGTH)
+            )
+            self._output_naming_entry.set_text(result_str)
+
+        elif name == "custom" and button.get_active():
+            # TODO: can the textbox gain focus here?
+            self._output_naming_entry.set_editable(True)
+            self._output_naming_entry.set_text("YOU TYPE NOW")
+
+        self._apply_ext_to_output_naming_entry()
+
+    def _apply_ext_to_output_naming_entry(self):
+        text = self._output_naming_entry.get_text()
+        extensions = [
+            PARAM_TO_TAR_COMPRESS_SETTINGS[key]["ext"]
+            for key in PARAM_TO_TAR_COMPRESS_SETTINGS
+        ]
+        for ext in extensions:
+            full_ext = ext + ".enc"
+            if text.endswith(full_ext):
+                text = text.rstrip(full_ext)
+                break
+        text = (
+            text
+            + PARAM_TO_TAR_COMPRESS_SETTINGS[self._selected_compression]["ext"]
+            + ".enc"
+        )
+        self._output_naming_entry.set_text(text)
+
+    def _set_epoch_on_output_naming_entry(self):
+        self._output_naming_entry.set_text(str(time.time()).replace(".", "_"))
