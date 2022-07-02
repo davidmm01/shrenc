@@ -27,6 +27,8 @@ CYPHER_SELECTION_PROMPT = "Select cypher algorithm"
 FILE_PICKER_PROMPT = "Please choose a file"
 OUTPUT_NAMING_PROMPT = "Choose name of encrypted file"
 
+ENCRYPTED_EXTENSION = ".enc"
+
 RANDOM_PASSWORD_LENGTH = 12
 
 
@@ -91,7 +93,7 @@ class EncryptionStack:
         output_naming_radio_box.pack_start(radio_button_3, False, False, 0)
         output_naming_radio_box.pack_start(radio_button_4, False, False, 0)
         self._output_naming_entry = Gtk.Entry()
-        self._output_naming_entry.set_editable(False)
+        self._output_naming_entry.set_sensitive(False)
         self._set_epoch_on_output_naming_entry()
 
         # Compression selection
@@ -237,6 +239,7 @@ class EncryptionStack:
         self._encrypt_button.set_sensitive(False)
 
     def _on_entry_passphrase_changed(self, widget):
+        # TODO: add passphrase strength feedback
         self._enc_passphrase_entered = self._entry_passphrase.get_text()
         self._update_encryption_button_sensitivity()
 
@@ -250,30 +253,27 @@ class EncryptionStack:
         self._encrypt_button.set_sensitive(sensitivity)
 
     def _on_radio_button_toggled(self, button, name):
-        # TODO: all of these should make the cell LOOK uneditable other than `custom`
-
         if name == "epoch" and button.get_active():
-            self._output_naming_entry.set_editable(False)
+            self._output_naming_entry.set_sensitive(False)
             self._set_epoch_on_output_naming_entry()
 
         elif name == "iso" and button.get_active():
-            self._output_naming_entry.set_editable(False)
+            self._output_naming_entry.set_sensitive(False)
+
             self._output_naming_entry.set_text(
                 datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S")
             )
 
         elif name == "random" and button.get_active():
-            self._output_naming_entry.set_editable(False)
-            letters = string.ascii_lowercase
+            self._output_naming_entry.set_sensitive(False)
+            source = string.ascii_lowercase + string.digits
             result_str = "".join(
-                random.choice(letters) for i in range(RANDOM_PASSWORD_LENGTH)
+                random.choice(source) for i in range(RANDOM_PASSWORD_LENGTH)
             )
             self._output_naming_entry.set_text(result_str)
 
         elif name == "custom" and button.get_active():
-            # TODO: can the textbox gain focus here?
-            self._output_naming_entry.set_editable(True)
-            self._output_naming_entry.set_text("YOU TYPE NOW")
+            self._output_naming_entry.set_sensitive(True)
 
         self._apply_ext_to_output_naming_entry()
 
@@ -284,14 +284,14 @@ class EncryptionStack:
             for key in PARAM_TO_TAR_COMPRESS_SETTINGS
         ]
         for ext in extensions:
-            full_ext = ext + ".enc"
+            full_ext = ext + ENCRYPTED_EXTENSION
             if text.endswith(full_ext):
                 text = text.rstrip(full_ext)
                 break
         text = (
             text
             + PARAM_TO_TAR_COMPRESS_SETTINGS[self._selected_compression]["ext"]
-            + ".enc"
+            + ENCRYPTED_EXTENSION
         )
         self._output_naming_entry.set_text(text)
 
