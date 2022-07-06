@@ -55,8 +55,7 @@ def undo_tar_and_compress(archive, dest="."):
         tar.extractall(dest)
 
 
-def encrypt_file(filename_in, filename_out, passphrase, symmetric=True, armor=True):
-    # TODO: now that we always pass armor and symmetric, can remove the defaults
+def encrypt_file(filename_in, filename_out, passphrase, symmetric, armor):
     gpg = gnupg.GPG(gnupghome=".")
     gpg.encoding = "utf-8"
     with open(filename_in, "rb") as f:

@@ -31,6 +31,18 @@ ENCRYPTED_EXTENSION = ".enc"
 
 RANDOM_PASSWORD_LENGTH = 12
 
+# `*_NAME` refers to the name attribute of the button, used to determine
+# which radio button was selected.
+# `*_LABEL` is what the user will see.
+EPOCH_NAME = "epoch"
+EPOCH_LABEL = "Epoch timestamp"
+ISO_NAME = "iso"
+ISO_LABEL = "ISO timestamp"
+RAND_NAME = "random"
+RAND_LABEL = "Garbage"
+CUSTOM_NAME = "custom"
+CUSTOM_LABEL = "Custom"
+
 
 class EncryptionStack:
     def __init__(self, main_window):
@@ -71,22 +83,20 @@ class EncryptionStack:
         # Output naming controls
         output_naming_label = Gtk.Label(label=OUTPUT_NAMING_PROMPT)
         output_naming_radio_box = Gtk.Box(spacing=6)
-        radio_button_1 = Gtk.RadioButton.new_with_label_from_widget(
-            None, "Epoch timestamp"
-        )
-        radio_button_1.connect("toggled", self._on_radio_button_toggled, "epoch")
+        radio_button_1 = Gtk.RadioButton.new_with_label_from_widget(None, EPOCH_LABEL)
+        radio_button_1.connect("toggled", self._on_radio_button_toggled, EPOCH_NAME)
         radio_button_2 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_1, "ISO timestamp"
+            radio_button_1, ISO_LABEL
         )
-        radio_button_2.connect("toggled", self._on_radio_button_toggled, "iso")
+        radio_button_2.connect("toggled", self._on_radio_button_toggled, ISO_NAME)
         radio_button_3 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_2, "Garbage"
+            radio_button_2, RAND_LABEL
         )
-        radio_button_3.connect("toggled", self._on_radio_button_toggled, "random")
+        radio_button_3.connect("toggled", self._on_radio_button_toggled, RAND_NAME)
         radio_button_4 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_3, "Custom"
+            radio_button_3, CUSTOM_LABEL
         )
-        radio_button_4.connect("toggled", self._on_radio_button_toggled, "custom")
+        radio_button_4.connect("toggled", self._on_radio_button_toggled, CUSTOM_NAME)
 
         output_naming_radio_box.pack_start(radio_button_1, False, False, 0)
         output_naming_radio_box.pack_start(radio_button_2, False, False, 0)
@@ -111,7 +121,8 @@ class EncryptionStack:
         compression_combo = Gtk.ComboBox.new_with_model(compression_store)
         compression_combo.connect("changed", self._on_compression_combo_changed)
         compression_combo.set_entry_text_column(0)
-        # need this so the labels in the various list stores actually get applied to the comboboxes
+        # need this so the labels in the various list stores actually get applied
+        # to the comboboxes
         renderer_text = Gtk.CellRendererText()
         compression_combo.pack_start(renderer_text, True)
         compression_combo.add_attribute(renderer_text, "text", 0)
@@ -122,8 +133,8 @@ class EncryptionStack:
         self._selected_cypher = "AES256"
         cypher_store = Gtk.ListStore(str)
         # TODO: could the available cyphers be worked out from the version
-        # info of GPG? Would protect from using one that is invalid with the version of GPG.
-        # Atleast make the cyphers a constant later if no logic
+        # info of GPG? Would protect from using one that is invalid with the version
+        # of GPG. Atleast make the cyphers a constant later if no logic
         cyphers = [
             "IDEA",
             "3DES",
@@ -207,11 +218,13 @@ class EncryptionStack:
         dialog.destroy()
 
     def _on_encrypt_clicked(self, widget):
-        comp_ext = PARAM_TO_TAR_COMPRESS_SETTINGS[self._selected_compression]["ext"]
-        full_ext = f"{comp_ext}{ENCRYPTED_EXTENSION}"
+        extension = (
+            PARAM_TO_TAR_COMPRESS_SETTINGS[self._selected_compression]["ext"]
+            + ENCRYPTED_EXTENSION
+        )
 
         # if the name looks OK, proceed to encrpyt without any warnings
-        if self._output_naming_entry.get_text().endswith(full_ext):
+        if self._output_naming_entry.get_text().endswith(extension):
             self._do_encryption()
             return
 
@@ -224,7 +237,7 @@ class EncryptionStack:
         detail = (
             f"The selected file name '{self._output_naming_entry.get_text()}' does "
             "not have the right extension for the selected compression\nIt should "
-            f"end in {full_ext}\nShrenc may not know how to decrpyt this file in the "
+            f"end in {extension}\nShrenc may not know how to decrpyt this file in the "
             "future.\nAre you sure you want to continue?"
         )
         label = Gtk.Label(label=detail)
@@ -289,18 +302,18 @@ class EncryptionStack:
         self._encrypt_button.set_sensitive(sensitivity)
 
     def _on_radio_button_toggled(self, button, name):
-        if name == "epoch" and button.get_active():
+        if name == EPOCH_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(False)
             self._set_epoch_on_output_naming_entry()
 
-        elif name == "iso" and button.get_active():
+        elif name == ISO_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(False)
 
             self._output_naming_entry.set_text(
                 datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S")
             )
 
-        elif name == "random" and button.get_active():
+        elif name == RAND_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(False)
             source = string.ascii_lowercase + string.digits
             result_str = "".join(
@@ -308,7 +321,7 @@ class EncryptionStack:
             )
             self._output_naming_entry.set_text(result_str)
 
-        elif name == "custom" and button.get_active():
+        elif name == CUSTOM_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(True)
 
         self._apply_ext_to_output_naming_entry()

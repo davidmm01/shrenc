@@ -55,7 +55,7 @@ def test_file_encryption_and_decryption():
         f.write("blahhhhhhh")
 
     # encrypt the test file and check the file exists
-    encrypt_file(TEST_FILE, ENCRYPTED_FILE, "poops")
+    encrypt_file(TEST_FILE, ENCRYPTED_FILE, "poops", "AES256", True)
     assert os.path.exists(ENCRYPTED_FILE)
 
     # compare the standard and encrypt files, the content should be different
