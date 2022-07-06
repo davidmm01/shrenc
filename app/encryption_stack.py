@@ -207,7 +207,43 @@ class EncryptionStack:
         dialog.destroy()
 
     def _on_encrypt_clicked(self, widget):
-        # TODO: add a warning if the chosen name does have the right extension
+        comp_ext = PARAM_TO_TAR_COMPRESS_SETTINGS[self._selected_compression]["ext"]
+        full_ext = f"{comp_ext}{ENCRYPTED_EXTENSION}"
+
+        # if the name looks OK, proceed to encrpyt without any warnings
+        if self._output_naming_entry.get_text().endswith(full_ext):
+            self._do_encryption()
+            return
+
+        # else if the entered name does not look correct, warn the user first
+        # before proceeding
+        dialog = Gtk.Dialog(
+            title="Warning!",
+            parent=self._main_window,
+        )
+        detail = (
+            f"The selected file name '{self._output_naming_entry.get_text()}' does "
+            "not have the right extension for the selected compression\nIt should "
+            f"end in {full_ext}\nShrenc may not know how to decrpyt this file in the "
+            "future.\nAre you sure you want to continue?"
+        )
+        label = Gtk.Label(label=detail)
+        box = dialog.get_content_area()
+        box.add(label)
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL,
+            Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OK,
+            Gtk.ResponseType.OK,
+        )
+        dialog.show_all()
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            self._do_encryption()
+
+        dialog.destroy()
+
+    def _do_encryption(self):
         temp_filename = time.time()
         temp_filename = str(temp_filename).replace(".", "_")
         compressed_name = tar_and_compress(
