@@ -28,7 +28,7 @@ def test_file_compression_and_extraction_on_single_file(compression):
         f.write("blahhhhhhh")
 
     # compress the file and check the file exists
-    filename = tar_and_compress(TEST_FILE, COMPRESSED_NAME_WO_EXT, compression)
+    filename = tar_and_compress([TEST_FILE], COMPRESSED_NAME_WO_EXT, compression)
     assert os.path.exists(filename)
 
     # uncompress the file and check the file exists

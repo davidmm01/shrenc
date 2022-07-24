@@ -25,7 +25,7 @@ EXT_TO_MODE = {
 }
 
 
-def tar_and_compress(path, archive_name, compression="no-compression"):
+def tar_and_compress(paths, archive_name, compression="no-compression"):
     settings = PARAM_TO_TAR_COMPRESS_SETTINGS.get(compression)
     if not settings:
         # TODO: raise suitable error here, and a unit test for this
@@ -35,7 +35,8 @@ def tar_and_compress(path, archive_name, compression="no-compression"):
     mode = settings["mode"]
 
     with tarfile.open(output_name, mode) as tar:
-        tar.add(path)
+        for path in paths:
+            tar.add(path)
 
     return output_name
 

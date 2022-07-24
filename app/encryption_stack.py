@@ -49,7 +49,7 @@ class EncryptionStack:
         self._main_window = main_window
 
         # File selection
-        self._selected_filename = None
+        self._selected_file_list = None
         choose_file_button = Gtk.Button(label=CHOOSE_FILE_BUTTON_TEXT)
         choose_file_button.connect("clicked", self._on_choose_file_clicked)
         self._chosen_file_label = Gtk.Label(label=SELECTED_FILE_RESET_MSG)
@@ -194,24 +194,16 @@ class EncryptionStack:
             self._apply_ext_to_output_naming_entry()
 
     def _on_choose_file_clicked(self, widget):
-        dialog = Gtk.FileChooserDialog(
-            title=FILE_PICKER_PROMPT,
-            parent=self._main_window,
-            action=Gtk.FileChooserAction.OPEN,
-        )
-        dialog.add_buttons(
-            Gtk.STOCK_CANCEL,
-            Gtk.ResponseType.CANCEL,
-            Gtk.STOCK_OPEN,
-            Gtk.ResponseType.OK,
-        )
+        dialog = ChooseFileFolder(self._main_window)
 
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            self._selected_filename = dialog.get_filename()
-            logger.debug(f"self._selected_filename={self._selected_filename}")
+        dialog.run()
+        self._selected_file_list = dialog.get_selected()
+
+        if self._selected_file_list:
+            logger.debug(f"self._selected_file_list={self._selected_file_list}")
+            # TODO: make this label look nicer, e.g. one entry per line listed out
             self._chosen_file_label.set_text(
-                "File to encrypt: " + self._selected_filename
+                "Files/dirs to encrypt: " + str(self._selected_file_list)
             )
             self._update_encryption_button_sensitivity()
 
@@ -260,7 +252,7 @@ class EncryptionStack:
         temp_filename = time.time()
         temp_filename = str(temp_filename).replace(".", "_")
         compressed_name = tar_and_compress(
-            self._selected_filename, temp_filename, self._selected_compression
+            self._selected_file_list, temp_filename, self._selected_compression
         )
         logger.debug(f"finished compressing file {compressed_name}")
         encrypt_file(
@@ -284,7 +276,7 @@ class EncryptionStack:
             "Success!: Created " + self._output_naming_entry.get_text()
         )
         self._chosen_file_label.set_text(SELECTED_FILE_RESET_MSG)
-        self._selected_filename = None
+        self._selected_file_list = None
         self._encrypt_button.set_sensitive(False)
 
     def _on_entry_passphrase_changed(self, widget):
@@ -298,7 +290,7 @@ class EncryptionStack:
         )
 
     def _update_encryption_button_sensitivity(self):
-        sensitivity = self._enc_passphrase_entered and self._selected_filename
+        sensitivity = self._enc_passphrase_entered and self._selected_file_list
         self._encrypt_button.set_sensitive(sensitivity)
 
     def _on_radio_button_toggled(self, button, name):
@@ -346,3 +338,49 @@ class EncryptionStack:
 
     def _set_epoch_on_output_naming_entry(self):
         self._output_naming_entry.set_text(str(time.time()).replace(".", "_"))
+
+
+class ChooseFileFolder(Gtk.Dialog):
+    # The standard `FileChooserDialog` provided will not allow selection of both
+    # files and/or folders, you can only configure it to do one or the other. To
+    # get around this limitation, we must make our own dialog building ontop of the
+    # `FileChooserWidget` widget. See: (
+    #     "https://stackoverflow.com/questions/"
+    #      "45153305/gtk-filechooserdialog-select-files-and-folders-vala"
+    # )
+
+    def __init__(self, parent):
+        # TODO: do we like having `transient_for` here or not? Probs not?
+        super().__init__(title="ChooseFileFolder", transient_for=parent, flags=0)
+
+        header_bar = Gtk.HeaderBar(
+            title="Choose Files and/or Directories",
+            subtitle="Use control and shift to select multiple",
+        )
+        cancel_button = Gtk.Button(label="Cancel")
+        cancel_button.connect("clicked", self._on_cancel_clicked)
+        select_button = Gtk.Button(label="Select")
+        select_button.connect("clicked", self._on_select_clicked)
+        header_bar.pack_start(cancel_button)
+        header_bar.pack_end(select_button)
+        self.set_titlebar(header_bar)
+
+        self._chooser = Gtk.FileChooserWidget(action=Gtk.FileChooserAction.OPEN)
+        self._chooser.set_select_multiple(True)
+
+        box = self.get_content_area()
+        box.pack_start(self._chooser, True, True, 0)
+        self.show_all()
+
+    def _on_cancel_clicked(self, widget):
+        self._selected_files_dirs = None
+        self.destroy()
+
+    def _on_select_clicked(self, widget):
+        self._selected_files_dirs = self._chooser.get_filenames()
+        self.destroy()
+
+    def get_selected(self):
+        # This method is also treated as the response for this dialog, i.e. the
+        # truthiness of the return is considered.
+        return self._selected_files_dirs
