@@ -4,6 +4,7 @@ import os
 import random
 import string
 import time
+import uuid
 
 import gi
 
@@ -38,6 +39,8 @@ EPOCH_NAME = "epoch"
 EPOCH_LABEL = "Epoch timestamp"
 ISO_NAME = "iso"
 ISO_LABEL = "ISO timestamp"
+UUID_NAME = "uuid"
+UUID_LABEL = "UUID v4"
 RAND_NAME = "random"
 RAND_LABEL = "Garbage"
 CUSTOM_NAME = "custom"
@@ -83,25 +86,37 @@ class EncryptionStack:
         # Output naming controls
         output_naming_label = Gtk.Label(label=OUTPUT_NAMING_PROMPT)
         output_naming_radio_box = Gtk.Box(spacing=6)
-        radio_button_1 = Gtk.RadioButton.new_with_label_from_widget(None, EPOCH_LABEL)
-        radio_button_1.connect("toggled", self._on_radio_button_toggled, EPOCH_NAME)
-        radio_button_2 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_1, ISO_LABEL
+        radio_button_epoch = Gtk.RadioButton.new_with_label_from_widget(
+            None, EPOCH_LABEL
         )
-        radio_button_2.connect("toggled", self._on_radio_button_toggled, ISO_NAME)
-        radio_button_3 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_2, RAND_LABEL
+        radio_button_epoch.connect("toggled", self._on_radio_button_toggled, EPOCH_NAME)
+        radio_button_iso = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_epoch, ISO_LABEL
         )
-        radio_button_3.connect("toggled", self._on_radio_button_toggled, RAND_NAME)
-        radio_button_4 = Gtk.RadioButton.new_with_label_from_widget(
-            radio_button_3, CUSTOM_LABEL
+        radio_button_iso.connect("toggled", self._on_radio_button_toggled, ISO_NAME)
+        radio_button_uuid = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_iso, UUID_LABEL
         )
-        radio_button_4.connect("toggled", self._on_radio_button_toggled, CUSTOM_NAME)
+        radio_button_uuid.connect("toggled", self._on_radio_button_toggled, UUID_NAME)
 
-        output_naming_radio_box.pack_start(radio_button_1, False, False, 0)
-        output_naming_radio_box.pack_start(radio_button_2, False, False, 0)
-        output_naming_radio_box.pack_start(radio_button_3, False, False, 0)
-        output_naming_radio_box.pack_start(radio_button_4, False, False, 0)
+        radio_button_garbage = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_uuid, RAND_LABEL
+        )
+        radio_button_garbage.connect(
+            "toggled", self._on_radio_button_toggled, RAND_NAME
+        )
+        radio_button_custom = Gtk.RadioButton.new_with_label_from_widget(
+            radio_button_garbage, CUSTOM_LABEL
+        )
+        radio_button_custom.connect(
+            "toggled", self._on_radio_button_toggled, CUSTOM_NAME
+        )
+
+        output_naming_radio_box.pack_start(radio_button_epoch, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_iso, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_uuid, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_garbage, False, False, 0)
+        output_naming_radio_box.pack_start(radio_button_custom, False, False, 0)
         self._output_naming_entry = Gtk.Entry()
         self._output_naming_entry.set_sensitive(False)
         self._set_epoch_on_output_naming_entry()
@@ -300,10 +315,13 @@ class EncryptionStack:
 
         elif name == ISO_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(False)
-
             self._output_naming_entry.set_text(
                 datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S")
             )
+
+        elif name == UUID_NAME and button.get_active():
+            self._output_naming_entry.set_sensitive(False)
+            self._output_naming_entry.set_text(str(uuid.uuid4()))
 
         elif name == RAND_NAME and button.get_active():
             self._output_naming_entry.set_sensitive(False)
@@ -349,14 +367,14 @@ class ChooseFileFolder(Gtk.Dialog):
     #      "45153305/gtk-filechooserdialog-select-files-and-folders-vala"
     # )
 
+    TITLE = "Choose Files and/or Directories"
+    SUBTITLE = "Use control and shift to select multiple"
+
     def __init__(self, parent):
         # TODO: do we like having `transient_for` here or not? Probs not?
         super().__init__(title="ChooseFileFolder", transient_for=parent, flags=0)
 
-        header_bar = Gtk.HeaderBar(
-            title="Choose Files and/or Directories",
-            subtitle="Use control and shift to select multiple",
-        )
+        header_bar = Gtk.HeaderBar(title=self.TITLE, subtitle=self.SUBTITLE)
         cancel_button = Gtk.Button(label="Cancel")
         cancel_button.connect("clicked", self._on_cancel_clicked)
         select_button = Gtk.Button(label="Select")
