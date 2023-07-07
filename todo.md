@@ -7,3 +7,5 @@
 - support regular keys, not only symetric
 - add option for whether an encryption will batch multiple selected files in a tar together, or put them in separate tars
 - make a readme.md
+
+test edit
